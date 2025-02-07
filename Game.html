@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tap & Stack</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      background-color: #2c3e50;
+      color: white;
+      text-align: center;
+    }
+    canvas {
+      display: block;
+    }
+    .score {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: 24px;
+      z-index: 10;
+    }
+    .game-over {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 36px;
+      font-weight: bold;
+      display: none;
+    }
+    .restart-screen {
+      position: absolute;
+      top: 60%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.7);
+      padding: 20px;
+      border-radius: 10px;
+      width: 80%;
+      max-width: 400px;
+      text-align: center;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+      display: none;
+    }
+    .restart-screen p {
+      font-size: 18px;
+      margin-bottom: 20px;
+    }
+    .restart-screen button {
+      background-color: #e74c3c;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 18px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    .restart-screen button:hover {
+      background-color: #c0392b;
+    }
+    .start-screen {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.7);
+      padding: 20px;
+      border-radius: 10px;
+      width: 80%;
+      max-width: 400px;
+      text-align: center;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+    }
+    .start-screen h1 {
+      font-size: 28px;
+      margin-bottom: 10px;
+    }
+    .start-screen p {
+      font-size: 16px;
+      margin-bottom: 20px;
+    }
+    .start-screen button {
+      background-color: #3498db;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 18px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    .start-screen button:hover {
+      background-color: #2980b9;
+    }
+  </style>
+</head>
+<body>
+  <!-- Score Display -->
+  <div class="score">Score: 0</div>
+
+  <!-- Game Over Screen -->
+  <div class="game-over">Game Over!</div>
+
+  <!-- Restart Screen -->
+  <div class="restart-screen">
+    <p>I'm sure you can do better!</p>
+    <button id="restartButton">Restart Game</button>
+  </div>
+
+  <!-- Start Screen -->
+  <div class="start-screen">
+    <h1>Tap & Stack</h1>
+    <p>Tap the screen to stack blocks as high as you can.<br>Align them perfectly to keep the tower stable!</p>
+    <button id="startButton">Start Game</button>
+  </div>
+
+  <!-- Game Canvas -->
+  <canvas id="gameCanvas"></canvas>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Set canvas size to fit the screen
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    let score = 0;
+    let gameOver = false;
+    let gameStarted = false;
+    let blocks = [];
+    let currentBlock = null;
+    let direction = 1; // 1 = right, -1 = left
+    let speed = 2;
+
+    class Block {
+      constructor(x, y, width, height) {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+      }
+
+      draw() {
+        ctx.fillStyle = '#3498db';
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+      }
+    }
+
+    function createNewBlock() {
+      const lastBlock = blocks[blocks.length - 1];
+      let newWidth = lastBlock ? lastBlock.width : 100;
+      let newX = lastBlock ? lastBlock.x : (canvas.width - newWidth) / 2;
+      currentBlock = new Block(newX, canvas.height - 50, newWidth, 20);
+    }
+
+    function updateGame() {
+      if (!gameStarted || gameOver) return;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Move current block
+      currentBlock.x += speed * direction;
+      if (currentBlock.x <= 0 || currentBlock.x + currentBlock.width >= canvas.width) {
+        direction *= -1; // Reverse direction
+      }
+
+      // Draw all blocks
+      blocks.forEach(block => block.draw());
+      currentBlock.draw();
+
+      requestAnimationFrame(updateGame);
+    }
+
+    function checkCollision() {
+      const lastBlock = blocks[blocks.length - 1];
+      if (!lastBlock) return true; // First block always lands
+
+      const overlapLeft = Math.max(lastBlock.x, currentBlock.x);
+      const overlapRight = Math.min(lastBlock.x + lastBlock.width, currentBlock.x + currentBlock.width);
+
+      if (overlapLeft < overlapRight) {
+        // Perfect or partial alignment
+        currentBlock.width = overlapRight - overlapLeft;
+        currentBlock.x = overlapLeft;
+        return true;
+      } else {
+        // Missed the block
+        return false;
+      }
+    }
+
+    document.addEventListener('click', () => {
+      if (!gameStarted || gameOver) return;
+
+      if (checkCollision()) {
+        blocks.push(currentBlock);
+        score++;
+        document.querySelector('.score').innerText = `Score: ${score}`;
+        createNewBlock();
+      } else {
+        gameOver = true;
+        document.querySelector('.game-over').style.display = 'block';
+        document.querySelector('.restart-screen').style.display = 'block';
+      }
+    });
+
+    // Start the game when the "Start Game" button is clicked
+    document.getElementById('startButton').addEventListener('click', () => {
+      document.querySelector('.start-screen').style.display = 'none'; // Hide start screen
+      gameStarted = true;
+      createNewBlock();
+      updateGame();
+    });
+
+    // Restart the game when the "Restart Game" button is clicked
+    document.getElementById('restartButton').addEventListener('click', () => {
+      location.reload(); // Reload the page to restart the game
+    });
+  </script>
+</body>
+</html>
